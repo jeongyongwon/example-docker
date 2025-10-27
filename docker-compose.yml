@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # ===============================================
+  # FastAPI 서비스 (포트 8001)
+  # ===============================================
+  fastapi-service:
+    build: ./fastapi-service
+    ports:
+      - "8001:8000"
+    environment:
+      - SERVICE_NAME=fastapi-service
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./fastapi-service/logs:/var/log/fastapi-service
+    networks:
+      - logging-network
+
+  # ===============================================
+  # Spring Boot 서비스 (포트 8003) - 컴파일 에러로 임시 주석 처리
+  # ===============================================
+  # springboot-service:
+  #   build: ./springboot-service
+  #   ports:
+  #     - "8003:8080"
+  #   environment:
+  #     - SPRING_APPLICATION_NAME=springboot-service
+  #     - ENVIRONMENT=development
+  #     - LOG_PATH=/var/log/springboot-service
+  #   volumes:
+  #     - ./springboot-service/logs:/var/log/springboot-service
+  #   networks:
+  #     - logging-network
+
+  # ===============================================
+  # Express.js 서비스 (포트 8002)
+  # ===============================================
+  express-service:
+    build: ./express-service
+    ports:
+      - "8002:3000"
+    environment:
+      - SERVICE_NAME=express-service
+      - ENVIRONMENT=development
+      - PORT=3000
+      - LOG_LEVEL=info
+    volumes:
+      - ./express-service/logs:/var/log/express-service
+    networks:
+      - logging-network
+
+  # ===============================================
+  # Promtail for FastAPI (포트 4101)
+  # ===============================================
+  promtail-fastapi:
+    image: grafana/promtail:2.9.0
+    ports:
+      - "4101:9080"
+    volumes:
+      - ./promtail-fastapi.yml:/etc/promtail/config.yml
+      - ./fastapi-service/logs:/var/log/fastapi-service:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - logging-network
+    depends_on:
+      - fastapi-service
+
+  # ===============================================
+  # Promtail for Express (포트 4102)
+  # ===============================================
+  promtail-express:
+    image: grafana/promtail:2.9.0
+    ports:
+      - "4102:9080"
+    volumes:
+      - ./promtail-express.yml:/etc/promtail/config.yml
+      - ./express-service/logs:/var/log/express-service:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - logging-network
+    depends_on:
+      - express-service
+
+  # ===============================================
+  # Promtail for SpringBoot (포트 4103) - SpringBoot 서비스 주석 처리로 임시 비활성화
+  # ===============================================
+  # promtail-springboot:
+  #   image: grafana/promtail:2.9.0
+  #   ports:
+  #     - "4103:9080"
+  #   volumes:
+  #     - ./promtail-springboot.yml:/etc/promtail/config.yml
+  #     - ./springboot-service/logs:/var/log/springboot-service:ro
+  #   command: -config.file=/etc/promtail/config.yml
+  #   networks:
+  #     - logging-network
+  #   depends_on:
+  #     - springboot-service
+
+networks:
+  logging-network:
+    driver: bridge

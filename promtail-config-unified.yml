@@ -1,0 +1,158 @@
+# ===============================================
+# 통합 로그 포맷을 위한 Promtail 설정
+# FastAPI, Spring Boot, Express.js의 JSON 로그를 수집
+# ===============================================
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+# ===============================================
+# 로그 수집 설정
+# ===============================================
+scrape_configs:
+  # --- FastAPI 서비스 로그 수집 ---
+  - job_name: fastapi-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: fastapi-service
+          component: app
+          __path__: /var/log/fastapi-service/*.log
+
+    pipeline_stages:
+      # JSON 로그 파싱
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            service: service
+            environment: environment
+            host: host
+            message: message
+            trace_id: trace_id
+            span_id: span_id
+            request_id: request_id
+
+      # 타임스탬프 설정
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # 라벨 추가 (카디널리티가 낮은 것만)
+      - labels:
+          level:
+          service:
+          environment:
+          component:
+
+  # --- Spring Boot 서비스 로그 수집 ---
+  - job_name: springboot-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: springboot-service
+          component: app
+          __path__: /var/log/springboot-service/*.log
+
+    pipeline_stages:
+      # JSON 로그 파싱
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            service: service
+            environment: environment
+            host: host
+            message: message
+            trace_id: trace_id
+            span_id: span_id
+            request_id: request_id
+            logger_name: logger_name
+            thread_name: thread_name
+
+      # 타임스탬프 설정
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # 라벨 추가
+      - labels:
+          level:
+          service:
+          environment:
+          component:
+
+  # --- Express.js 서비스 로그 수집 ---
+  - job_name: express-service
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: express-service
+          component: app
+          __path__: /var/log/express-service/*.log
+
+    pipeline_stages:
+      # JSON 로그 파싱
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            service: service
+            environment: environment
+            host: host
+            message: message
+            trace_id: trace_id
+            span_id: span_id
+            request_id: request_id
+
+      # 타임스탬프 설정
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # 라벨 추가
+      - labels:
+          level:
+          service:
+          environment:
+          component:
+
+  # --- Jenkins 로그 수집 (기존 설정 유지) ---
+  - job_name: jenkins
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          component: jenkins
+          __path__: /mnt/jenkins_home/jobs/*/builds/*/log
+
+    pipeline_stages:
+      - regex:
+          source: path
+          expression: '^/mnt/jenkins_home/jobs/(?P<job_name>[^/]+)/builds/(?P<build_number>\d+)/log$'
+
+      - regex:
+          source: output
+          expression: 'PROMTAIL_GIT_REPO=(?P<git_repo>[^\s]+)'
+
+      - regex:
+          source: output
+          expression: 'PROMTAIL_GIT_BRANCH=(?P<git_branch>[^\s]+)'
+
+      - labels:
+          job_name:
+          build_number:
+          git_repo:
+          git_branch:
+
+      - static_labels:
+          component: jenkins

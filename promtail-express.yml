@@ -1,0 +1,53 @@
+# Express 애플리케이션 로그 수집을 위한 Promtail 설정
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-express.yaml
+
+clients:
+  - url: http://host.docker.internal:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: express-application-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          component: app
+          service: express-service
+          __path__: /var/log/express-service/*.log
+
+    pipeline_stages:
+      # JSON 로그 파싱
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            service: service
+            environment: environment
+            host: host
+            message: message
+            trace_id: trace_id
+            span_id: span_id
+            request_id: request_id
+
+      # 타임스탬프 설정
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+      # 라벨 추가
+      - labels:
+          level:
+          service:
+          environment:
+          component:
+
+      # ERROR, WARN 레벨만 수집
+      - match:
+          selector: '{level!~"ERROR|WARN|WARNING|error|warn"}'
+          stages:
+            - drop:
+                expression: ".*"
