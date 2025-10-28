@@ -35,5 +35,20 @@
 
 
 ---
+0. 지금 application 및 빌드로그를 테이블에 적재하는 과정에서 `target_service_id` 가 잘못 들어가는 현상이 있어. 예를들어 fastapi 로그인데 target_service_id가 2로 들어가는 현상이 있음. 문제원인을 찾기가 어려워서 차라리 promtail에서 target_service_id를 하드코딩해서 처리하는 방식이 좋을 것 같아.
 
+1. 빌드 및 로그 수집 과정 에서 아래 에러가 발생함. 애플리케이션 로그도 똑같이 동작하는지 확인 필요
+
+cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedTable: relation "git_commit_history" does not exist
+LINE 1: INSERT INTO git_commit_history (cicd_log_id, git_repo, git_b...
+
+나는 우선 git_commit_history 테이블을 쓰고 있지 않으며, 원래는 각 github의 repo 및 branch에서 최근 커밋 10개까지 가져오도록 해놨고, 만약 문제가 발생하는 파일을 추출할 수 있다면 해당 파일을 커밋 10개를 가져오도록 계획했어. 이전에는 그렇게 되있었던거 같은데 claude 거치면서 이상해진거 같음
+
+api/routers/git.py 에 /git_commits/file 이나 /github/commit/{owner}/{repo}/{file_path} 만 실행해서 목적에 맞게 사용하면 될 것 같아.
+
+ 
+
+3. 시멘틱 캐시가 된 데이터도 솔루션 자체는 보여줘야함. 그리고 시멘틱 cache, redis cache 를 통해 이전의 생성된 솔루션를 logs 테이블에 업데이트해서 cache_type은 유지는 해야함. 그리고 cache 처리되더라도 솔루션 재생성은 가능해야함.
+---
 1. hyde 기법을 활용해서 좀더 솔루션의 성능을 높이고 싶음 
